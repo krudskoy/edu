@@ -1,0 +1,10 @@
+[web-stack:children]
+web
+proxy
+
+[web]
+54.226.250.202
+54.227.97.89
+
+[proxy]
+54.89.227.175

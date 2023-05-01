@@ -1,0 +1,51 @@
+- hosts: web-stack
+  become: true
+  tasks:
+    - name: Install nginx
+      ansible.builtin.apt:
+        name: nginx
+        state: present
+    - name: Make sure nginx is running
+      ansible.builtin.systemd:
+        state: started
+        name: nginx
+      
+- hosts: web
+  become: true
+  tasks:
+    - name: Delete default index file
+      ansible.builtin.file:
+        state: absent
+        path: /var/www/html/index.nginx-debian.html
+    - name: Read-write git checkout from github
+      ansible.builtin.git:
+        repo: "https://github.com/ADi7YA26/Student-Dashboard.git"
+        dest: /var/www/html/
+        force: yes
+    - name: Replace Alex to host IP
+      ansible.builtin.shell:
+        cmd: sed -i "s/Hey, <b>Alex<\/b> /<b>$(curl http://169.254.169.254/latest/meta-data/public-ipv4)<\/b>/g" /var/www/html/index.html
+
+- hosts: proxy
+  become: true
+  tasks:
+    - name: Template a file to /etc/nginx/sites-enabled/default
+      ansible.builtin.template:
+        src: ./templates/nginx.j2
+        dest: /etc/nginx/nginx.conf
+      notify:
+        - Restart nginx
+    - name: Copy file with owner and permissions
+      ansible.builtin.copy:
+        src: ./files/default
+        dest: /etc/nginx/sites-enabled/default
+        owner: root
+        group: root
+        mode: '0644'
+      notify:
+        - Restart nginx
+  handlers:
+    - name: Restart nginx
+      ansible.builtin.systemd:
+        state: restarted
+        name: nginx
